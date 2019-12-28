@@ -1,0 +1,394 @@
+
+package NeuralNetInterface;
+
+import java.io.*;
+
+import robocode.RobocodeFileOutputStream;
+
+public class StateHashKey {
+
+			private Integer _myX;
+			private Integer _myY;
+			private Integer _distance;
+			private Integer _bearing;
+			private Integer _action;
+
+		public StateHashKey(
+				Integer myX,
+				Integer myY,
+				Integer distance,
+				Integer bearing,
+				Integer action){
+			_myX = myX;
+			_myY = myY;
+			_distance = distance;
+			_bearing = bearing;
+			_action = action;
+		}
+		public StateHashKey(){
+		}
+
+		public Integer getMyY(){
+			return _myY;
+		}
+		
+		public Integer getMyX(){
+			return _myX;
+		}
+		
+		public Integer getDistance(){
+			return _distance;
+		}
+		
+		public Integer getBearing(){
+			return _bearing;
+		}
+		
+		public Integer getAction(){
+			return _action;
+		}
+		
+		public void putAction(Integer a){
+			_action = a;
+		}
+		
+		public void putMyX(Integer a){
+			_myX = a;
+		}
+		
+		public void putMyY(Integer a){
+			_myY = a;
+		}
+		
+		public void putDistance(Integer a){
+			_distance = a;
+		}
+		
+		public void putBearing(Integer a){
+			_bearing = a;
+		}
+		
+		@Override
+		public int hashCode(){
+			return _myX.hashCode() ^ _myY.hashCode() ^ _distance.hashCode() ^ _bearing.hashCode() ^ _action.hashCode();
+		}
+		
+		@Override
+		public boolean equals(Object key){
+			if (key == null)
+				return false;
+
+//			if (key == this)
+//				return true;
+
+			if (key instanceof StateHashKey){
+				StateHashKey key1 = (StateHashKey)key;
+
+				if ((_myX == key1.getMyX()) && (_myY == key1.getMyY()) && (_distance == key1.getDistance()) && (_bearing == key1.getBearing()) && (_action == key1.getAction()))
+					return true;
+			}
+		return false;
+		}
+		
+		public void write(PrintStream saveFile){
+
+			saveFile.println(getMyX());
+			saveFile.println(getMyY());
+			saveFile.println(getDistance());
+			saveFile.println(getBearing());
+			saveFile.println(getAction());
+		}
+		
+		public boolean read(BufferedReader inputReader) throws NumberFormatException, IOException{
+			String s = inputReader.readLine();
+			
+			if (s == null)
+				return false;
+			
+			_myX = Integer.valueOf(s);
+			_myY = Integer.valueOf(inputReader.readLine());
+			_distance = Integer.valueOf(inputReader.readLine());
+			_bearing = Integer.valueOf(inputReader.readLine());
+			_action = Integer.valueOf(inputReader.readLine());
+			
+			return true;
+		}
+		
+		public  Double getMax(Double value){
+			Double max = 0.0;
+			
+			return max;
+		}
+		
+		public  Double getMin(Double value){
+			Double min = 2.0;
+			
+			return min;
+		}
+}
+
+package NeuralNetInterface;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintStream;
+import java.util.Hashtable;
+import java.util.Iterator;
+import java.util.Map;
+
+import robocode.*;
+
+
+public class finalBot extends AdvancedRobot{
+	
+	File newFile = null;
+	Boolean studyFlag = true;
+	Hashtable<StateHashKey, Double> stateActionHash = new Hashtable<StateHashKey, Double>();
+	
+	int eHeading = 0;
+	int myHeading = 0;
+	int eBearing = 0;
+	int eDistance = 0;
+	int a;
+	int [] key = {0, 0, 0};
+	int [] others = {0, 0};
+	double [] energy = {0, 0};
+	double q = 0;
+	double qMax = 0;
+	double rand;
+	int argNumInputs = 5;
+	int [] argVariableFloor = {0, 0, 0, 0, 0};
+	int [] argVariableCeiling = {600, 800, 1000, 360, 4};
+	LUT lut = null;
+	StateHashKey stateActionKeyj = null;
+	StateHashKey stateActionKeyi = null;
+	
+	double myBearing = 0;
+	double alpha = 0.5;
+	double gamma = 0.5;
+	double reward = 0;
+	double epsilon = 0.5;
+	double sumReward = 0;
+	
+	double qq = 0.0;
+	
+	public void run() {
+			
+			newFile = getDataFile("finalBot.txt");
+			LUT lut = new LUT(argNumInputs,
+					argVariableFloor,
+					argVariableCeiling);
+			
+			// Initialization of the robot should be put here
+			if (studyFlag){
+				try {
+					loadFromFile(newFile, stateActionHash);
+				} catch (NumberFormatException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			
+	
+			// setColors(Color.Red, Color.Blue, Color.Green); // body,gun,radar
+			// Robot main loop
+			while(true) {
+				// Replace the next 4 lines with any behavior you would like
+	
+				for (int i = 0; i < 25; i++) {
+					turnLeft(20);
+				}
+//				for (int i = 0; i < 25; i++) {
+//					turnRight(20);
+//				}
+			}
+		}
+		public void onScannedRobot(ScannedRobotEvent e) {
+			energy [0] = e.getEnergy();
+			others [0] = getOthers();
+			StateHashKey stateActionKey = new StateHashKey((int)getX(), (int)getY(), (int)e.getDistance(), (int)e.getBearing(), 1);
+			double temp = -100;
+			rand = Math.random();
+			StateHashKey stateActionKeyi = null;
+		//load from the LUT, check the Probability of {S, a}
+		//if greedy-choose random, if not greedy-choose max
+		//take Action
+
+			if (rand <= epsilon){		//IG: choose maximum
+				temp = -100;
+				double a = 1.0;
+				for (int i=1; i<argVariableCeiling[4]; i++){
+					
+					stateActionKeyi = new StateHashKey((int)getX(), (int)getY(), (int)e.getDistance(), (int)e.getBearing(), i);
+					if (!stateActionHash.containsKey(stateActionKeyi)){
+						stateActionHash.put(stateActionKeyi, 0.0);
+					}
+					else{
+						if (stateActionHash.get(stateActionKey) > temp){
+							temp = stateActionHash.get(stateActionKeyi);
+							a = stateActionKeyi.getAction();
+						}
+					}
+				}
+			action(a);
+			}
+			if (rand > epsilon){
+				double randKey = lut.randomizer(1, argVariableCeiling[4]);
+				stateActionKeyi = new StateHashKey((int)getX(), (int)getY(), (int)e.getDistance(), (int)e.getBearing(), (int)randKey);
+				
+				if(stateActionHash.containsKey(stateActionKeyi)){
+					action(1);
+				}
+				else{
+					action(stateActionKeyi.getAction());
+				}
+			}
+		//IG: and observe S'
+			energy [1] = getEnergy();
+			others [1] = getOthers();
+//			translator(getHeadingRadians(), getNewDistance(getX(), getY()));
+		//IG: Observe qMax
+			qMax = 0;
+			StateHashKey stateActionKeyj = null;
+			for (int i=1; i<argVariableCeiling[4]; i++){			//IG: choose maximum
+				stateActionKeyj = new StateHashKey((int)getX(), (int)getY(), (int)e.getDistance(), (int)e.getBearing(), i);
+				if (!stateActionHash.containsKey(stateActionKeyj)){
+					stateActionHash.put(stateActionKeyj, 0.0);
+				}
+				else{
+					if (stateActionHash.get(stateActionKey) > qMax){
+						qMax = stateActionHash.get(stateActionKeyj);
+				}
+			}
+
+		}
+		//IG: Observe Reward	
+			reward = rewardForAction(energy, others);
+			sumReward = sumReward + reward;
+		//Q(s, a) <- Q(s, a) + Alpha[Reward + Gamma Max Q(s', a') - Q(s, a)]
+			q = stateActionHash.get(stateActionKeyi) + alpha*(reward + gamma*qMax - stateActionHash.get(stateActionKeyi));
+			stateActionHash.put(stateActionKeyi, q);
+			saveToFile(newFile, stateActionHash);
+
+		}
+		
+		public void action(double a){
+			if (a == 1){
+				fire(3);
+				turnRight(90);
+				ahead(100);
+				turnLeft(90);
+				ahead(200);
+			}
+			if (a == 2){
+				fire(3);
+				turnLeft(90);
+				ahead(100);
+				turnRight(90);
+				ahead(200);
+			}
+			if (a == 3){
+				turnRight(90);
+				ahead(500);
+				turnLeft(90);
+				back(100);
+			}
+			if (a == 4){
+				fire(3);
+				turnLeft(90);
+				ahead(50);
+				turnRight(90);
+				back(100);
+			}
+		}
+		
+		public void onHitWall(HitWallEvent e) {
+			// Replace the next line with any behavior you would like
+//			reward = -1;
+//			sumReward = sumReward + reward;
+			back(100);
+			turnRight(50);
+		}
+		public void onHitByBullet(HitByBulletEvent e){
+			reward = -2;
+			sumReward = sumReward + reward;
+			back(50);
+		}
+		public void onWin(WinEvent e){
+			reward = 10;
+			q = stateActionHash.get(stateActionKeyi) + alpha*(reward + gamma*qMax - stateActionHash.get(stateActionKeyi));
+			stateActionHash.put(stateActionKeyi, q);
+//			lut.saveToFile(newFile, stateActionHash);
+		}
+		
+		public void onRobotDeath(RobotDeathEvent e){
+			reward = 10;
+			sumReward = sumReward + reward;
+			q = stateActionHash.get(stateActionKeyi) + alpha*(reward + gamma*qMax - stateActionHash.get(stateActionKeyi));
+			stateActionHash.put(stateActionKeyi, q);
+//			saveToFile(newFile, stateActionHash);
+		}
+		
+		public void onDeath(DeathEvent e){
+			reward = -1;
+			sumReward = sumReward + reward;
+			q = stateActionHash.get(stateActionKeyi) + alpha*(reward + gamma*qMax - stateActionHash.get(stateActionKeyi));
+			stateActionHash.put(stateActionKeyi, q);
+//			saveToFile(newFile, stateActionHash);
+		}
+		
+		public double rewardForAction(double [] energy, int [] others){
+			if (energy[1] > energy[0]){
+				reward = -1;
+			}
+			
+			if (energy[1] < energy[0]){
+				reward = 2;
+			}
+			
+			if (others[1] > others[0]){
+				reward = 10;
+			}
+		return reward;
+	}
+		public void saveToFile(File argFile, Hashtable<StateHashKey, Double> h){
+			PrintStream saveFile = null;
+			try {
+				saveFile = new PrintStream( new RobocodeFileOutputStream( argFile ));
+			}
+			catch (IOException e) {
+				System.out.println( "*** Could not create output stream for LUT save file.");
+			}
+
+			Iterator<Map.Entry<StateHashKey, Double>> it = h.entrySet().iterator();	
+			
+			while (it.hasNext()) {
+				Map.Entry<StateHashKey, Double> entry = it.next();
+				entry.getKey().write(saveFile);
+				
+				Double value = entry.getValue();
+				saveFile.println(value);
+			}
+			saveFile.close();		 
+		}
+		
+		public void loadFromFile(File argFileName, 	Hashtable<StateHashKey, Double> h) throws NumberFormatException, IOException{
+			FileInputStream inputFile = new FileInputStream( argFileName );
+			BufferedReader inputReader = new BufferedReader(new InputStreamReader( inputFile ));
+
+			
+			StateHashKey stateHashKey = new StateHashKey();
+			
+			while (stateHashKey.read(inputReader)){
+				h.put(stateHashKey, Double.valueOf(inputReader.readLine()));
+			}
+			
+			inputReader.close();	
+		}
+}
